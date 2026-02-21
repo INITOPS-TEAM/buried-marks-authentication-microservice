@@ -1,0 +1,64 @@
+name: Formatters
+on:
+  pull_request:
+  push:
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run Prettier
+        id: prettier
+        uses: creyD/prettier_action@v4.6
+        continue-on-error: true
+        with:
+          dry: true
+          prettier_options: --check .
+
+      - name: Run CSpell
+        id: cspell
+        uses: streetsidesoftware/cspell-action@v8.2.0
+        continue-on-error: true
+        with:
+          strict: false
+
+      - name: Check Linting Results
+        if: always()
+        run: |
+          echo "## Linting Results Summary " >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          failed=0
+          warned=0
+          passed=0
+
+          if [ "${{ steps.prettier.outcome }}" != "success" ]; then
+            echo "Prettier: FAILED. Please check its warnings!" >> $GITHUB_STEP_SUMMARY
+            warned=$((warned + 1))
+          else
+            echo "Prettier: PASSED" >> $GITHUB_STEP_SUMMARY
+            passed=$((passed + 1))
+          fi
+
+          if [ "${{ steps.cspell.outcome }}" != "success" ]; then
+            echo "CSpell: FAILED. Please check its warnings!" >> $GITHUB_STEP_SUMMARY
+            warned=$((warned + 1))
+          else
+            echo "CSpell: PASSED" >> $GITHUB_STEP_SUMMARY
+            passed=$((passed + 1))
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          total_failed=$((failed + warned))
+          echo "**Total: $passed passed, $total_failed failed**" >> $GITHUB_STEP_SUMMARY
+
+          if [ $failed -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**If you see any **Failed** results, please fix the linting and formatting issues above.**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

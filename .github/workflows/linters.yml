@@ -1,0 +1,144 @@
+name: Lint and Format Check
+on:
+  pull_request:
+  push:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run markdownlint
+        id: markdownlint
+        uses: nosborn/github-action-markdown-cli@v3.5.0
+        continue-on-error: true
+        with:
+          files: .
+          dot: true
+
+      - name: Setup Node for HTML ESLint and Run HTML ESLint
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Install HTML ESLint
+        run: npm install --save-dev eslint @html-eslint/parser @html-eslint/eslint-plugin
+
+      - name: Run HTML ESLint
+        id: htmllint
+        uses: sibiraj-s/action-eslint@v4
+        continue-on-error: true
+        with:
+          extensions: "html"
+          annotations: true
+          all-files: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Run Black
+        id: black
+        uses: psf/black@stable
+        continue-on-error: true
+        with:
+          options: "--check --verbose --extend-exclude='node_modules/'"
+
+      - name: Run isort
+        id: isort
+        continue-on-error: true
+        run: |
+          pip install isort
+          isort --check-only --diff --skip node_modules .
+
+      - name: Run Pylint
+        id: pylint
+        continue-on-error: true
+        run: |
+          pip install pylint
+          files=$(find . -name "*.py" -not -path "*/venv/*" -not -path "*/.venv/*")
+          if [ -n "$files" ]; then
+            pylint --fail-under=7.5 --disable=import-error $files
+          else
+            echo "No Python files found."
+          fi
+
+      - name: Run npm-groovy-lint
+        id: groovylint
+        continue-on-error: true
+        run: |
+          npm install -g npm-groovy-lint
+          npm-groovy-lint . || true
+
+      - name: Check Linting Results
+        if: always()
+        run: |
+          echo "## Linting Results Summary " >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          failed=0
+          warned=0
+          passed=0
+
+          if [ "${{ steps.markdownlint.outcome }}" != "success" ]; then
+            echo "Markdownlint: FAILED. Please check its warnings!" >> $GITHUB_STEP_SUMMARY
+            warned=$((warned + 1))
+          else
+            echo "Markdownlint: PASSED" >> $GITHUB_STEP_SUMMARY
+            passed=$((passed + 1))
+          fi
+
+          if [ "${{ steps.htmllint.outcome }}" != "success" ]; then
+            echo "HTML ESLint: FAILED. Please check its warnings!" >> $GITHUB_STEP_SUMMARY
+            warned=$((warned + 1))
+          else
+            echo "HTML ESLint: PASSED" >> $GITHUB_STEP_SUMMARY
+            passed=$((passed + 1))
+          fi
+
+          if [ "${{ steps.black.outcome }}" != "success" ]; then
+            echo "Black: FAILED. Please check its warnings!" >> $GITHUB_STEP_SUMMARY
+            warned=$((warned + 1))
+          else
+            echo "Black: PASSED" >> $GITHUB_STEP_SUMMARY
+            passed=$((passed + 1))
+          fi
+
+          if [ "${{ steps.isort.outcome }}" != "success" ]; then
+            echo "isort: FAILED. Please check its warnings!" >> $GITHUB_STEP_SUMMARY
+            warned=$((warned + 1))
+          else
+            echo "isort: PASSED" >> $GITHUB_STEP_SUMMARY
+            passed=$((passed + 1))
+          fi
+
+          if [ "${{ steps.pylint.outcome }}" != "success" ]; then
+            echo "Pylint: FAILED !!!" >> $GITHUB_STEP_SUMMARY
+            failed=$((failed + 1))
+          else
+            echo "Pylint: PASSED" >> $GITHUB_STEP_SUMMARY
+            passed=$((passed + 1))
+          fi
+
+          if [ "${{ steps.groovylint.outcome }}" != "success" ]; then
+            echo "npm-groovy-lint: FAILED. Please check its warnings!" >> $GITHUB_STEP_SUMMARY
+            failed=$((failed + 1))
+          else
+            echo "npm-groovy-lint: PASSED" >> $GITHUB_STEP_SUMMARY
+            passed=$((passed + 1))
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          total_failed=$((failed + warned))
+          echo "**Total: $passed passed, $total_failed failed**" >> $GITHUB_STEP_SUMMARY
+
+          if [ $failed -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**If you see any **Failed** results, please fix the linting and formatting issues above.**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
