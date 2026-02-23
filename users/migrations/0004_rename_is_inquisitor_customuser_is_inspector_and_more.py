@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('users', '0003_customuser_is_inquisitor_alter_customuser_role'),
+        ("users", "0003_customuser_is_inquisitor_alter_customuser_role"),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='customuser',
-            old_name='is_inquisitor',
-            new_name='is_inspector',
+            model_name="customuser",
+            old_name="is_inquisitor",
+            new_name="is_inspector",
         ),
         migrations.AlterField(
-            model_name='customuser',
-            name='is_first_login',
+            model_name="customuser",
+            name="is_first_login",
             field=models.BooleanField(default=False),
         ),
     ]

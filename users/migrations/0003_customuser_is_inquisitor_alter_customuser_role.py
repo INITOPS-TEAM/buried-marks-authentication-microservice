@@ -6,18 +6,26 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('users', '0002_customuser_is_first_login'),
+        ("users", "0002_customuser_is_first_login"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='customuser',
-            name='is_inquisitor',
+            model_name="customuser",
+            name="is_inquisitor",
             field=models.BooleanField(default=False),
         ),
         migrations.AlterField(
-            model_name='customuser',
-            name='role',
-            field=models.CharField(choices=[('1', 'ordinary mason'), ('2', 'silver mason'), ('3', 'gold mason')], default='1', max_length=20),
+            model_name="customuser",
+            name="role",
+            field=models.CharField(
+                choices=[
+                    ("1", "ordinary mason"),
+                    ("2", "silver mason"),
+                    ("3", "gold mason"),
+                ],
+                default="1",
+                max_length=20,
+            ),
         ),
     ]
