@@ -1,0 +1,8 @@
+.env
+private.pem
+public.pem
+.venv/
+.idea/
+__pycache__/
+*.pyc
+db.sqlite3
