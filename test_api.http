@@ -1,11 +1,11 @@
 ### Getting temp token
 
 POST http://127.0.0.1:8000/api/login/step1/
-
 Content-Type: application/json
+
 {
-  "username": "user_name",
-  "password": "user_password"
+  "username": "pavlo",
+  "password": "pavlo"
 }
 
 
@@ -13,11 +13,11 @@ Content-Type: application/json
 ### Insert dailycode
 
 POST http://127.0.0.1:8000/api/login/step2/
-
 Content-Type: application/json
+
 {
-  "temp_login_token": "Insert_here_temp_token",
-  "daily_code": "12345"
+  "temp_login_token": "eyJ1c2VyX2lkIjoxfQ:1vx6qy:ewP_LtWp6j1b5HXeNW-_rfS9X4xJ8R2yj4UUfvU6W28",
+  "daily_code": "149e5f23-555a-4a47-8a08-558341827110"
 }
 
 
@@ -25,10 +25,9 @@ Content-Type: application/json
 ### Password change
 
 POST http://127.0.0.1:8000/api/update-password/
-
 Content-Type: application/json
-
 Authorization: Bearer Insert_here_access_token
+
 {
   "new_password": "NewPassword"
 }

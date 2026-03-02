@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 with open(os.getenv("PRIVATE_KEY_PATH"), "r", encoding='utf-8') as f:
@@ -37,7 +38,7 @@ DATABASES = {
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 ALLOWED_HOSTS = ["auth-service", "localhost", "127.0.0.1"]
-DEBUG = True
+
 
 
 # Application definition
@@ -87,7 +88,7 @@ WSGI_APPLICATION = "core.wsgi.application"
 
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5100",
+    "http://localhost",
 ]
 
 

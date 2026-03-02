@@ -1,11 +1,17 @@
 from django.contrib.auth import authenticate, get_user_model
 from django.core import signing
 from django.core.signing import BadSignature, SignatureExpired
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
+import os
+import valkey
 
+from core import settings
+from .models import CustomUser
 from .serializers import CustomTokenObtainPairSerializer
 
 User = get_user_model()
@@ -74,11 +80,23 @@ class Step2LoginView(APIView):
             )
 
         # REQUEST TO DAILY_CODE SERVICE
-        mock_daily_code = "12345"
+        valkey_addr = os.environ.get("VALKEY_ADDR")
 
-        if daily_code != mock_daily_code:
+        try:
+            r = valkey.from_url(f"valkey://{valkey_addr}/0", decode_responses=True)
+
+            actual_daily_code = r.get("daily_code:global")
+
+            if daily_code != actual_daily_code:
+                return Response(
+                    {"error": "Invalid daily code."},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+        except valkey.ValkeyError as e:
             return Response(
-                {"error": "Invalid daily code."}, status=status.HTTP_401_UNAUTHORIZED
+                {"error": "Internal service error."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
         try:
@@ -99,6 +117,56 @@ class Step2LoginView(APIView):
             status=status.HTTP_200_OK,
         )
 
+class IsInternalService(BasePermission):
+    def has_permission(self, request, view):
+        secret_key = request.headers.get('X-Internal-Token')
+        return secret_key == settings.SECRET_KEY
+
+class ActiveUserEmailsView(APIView):
+    permission_classes = [IsInternalService]
+
+    def get(self, request):
+        emails = list(CustomUser.objects.filter(is_active=True).values_list('email', flat=True))
+        return Response({"emails": emails}, status=status.HTTP_200_OK)
+
+
+class EligibleUsersCountView(APIView):
+    permission_classes = [IsInternalService]
+
+    def get(self, request):
+        count = CustomUser.objects.filter(is_active=True).count()
+        return Response({"total_eligible": count}, status=status.HTTP_200_OK)
+
+
+class BanUserView(APIView):
+    permission_classes = [IsInternalService]
+
+    def post(self, request, user_id):
+        user = get_object_or_404(CustomUser, id=user_id)
+
+        if not user.is_active:
+            return Response({"message": f"User {user_id} is already banned."}, status=status.HTTP_200_OK)
+
+        user.is_active = False
+        user.save()
+
+        return Response({"message": f"User {user_id} successfully banned."}, status=status.HTTP_200_OK)
+
+
+class UpdateUserRoleView(APIView):
+    permission_classes = [IsInternalService]
+
+    def patch(self, request, user_id):
+        user = get_object_or_404(CustomUser, id=user_id)
+        new_role = request.data.get("role")
+
+        if not new_role:
+            return Response({"error": "Field role is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.role = new_role
+        user.save()
+
+        return Response({"message": f"User {user_id} role updated to '{new_role}'."}, status=status.HTTP_200_OK)
 
 # First login password change
 class UpdatePasswordView(APIView):
@@ -122,3 +190,4 @@ class UpdatePasswordView(APIView):
         return Response(
             {"message": "Password updated successfully"}, status=status.HTTP_200_OK
         )
+
