@@ -30,8 +30,7 @@ jobs:
           ECR_REPOSITORY: ${{ github.event.repository.name }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker buildx create --use
-          docker buildx build --platform linux/amd64,linux/arm64 \
-          -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-          -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
-          --push .
+          docker build -t $ECR_REGISTRY/$${{matrix.ecr_repo}}:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$${{matrix.ecr_repo}}:$IMAGE_TAG $ECR_REGISTRY/$${{matrix.ecr_repo}}:latest
+          docker push $ECR_REGISTRY/$${{matrix.ecr_repo}}:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$${{matrix.ecr_repo}}:latest
