@@ -1,7 +1,7 @@
+import secrets
 from django.contrib.auth import authenticate, get_user_model
 from django.core import signing
 from django.core.signing import BadSignature, SignatureExpired
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
@@ -9,6 +9,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 import os
 import valkey
+import requests
+
 
 from core import settings
 from .models import CustomUser
@@ -85,9 +87,11 @@ class Step2LoginView(APIView):
         try:
             r = valkey.from_url(f"valkey://{valkey_addr}/0", decode_responses=True)
 
-            actual_daily_code = r.get("daily_code:global")
+            key_name = os.environ.get("DAILY_CODE_KEY")
 
-            if daily_code != actual_daily_code:
+            actual_daily_code = r.get(key_name)
+
+            if daily_code.strip() != actual_daily_code.strip():
                 return Response(
                     {"error": "Invalid daily code."},
                     status=status.HTTP_401_UNAUTHORIZED
@@ -168,6 +172,138 @@ class UpdateUserRoleView(APIView):
 
         return Response({"message": f"User {user_id} role updated to '{new_role}'."}, status=status.HTTP_200_OK)
 
+# Check if user is Gold
+class IsGoldUser(BasePermission):
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated and str(request.user.role) == '3')
+
+
+class InviteUserView(APIView):
+    permission_classes = [IsGoldUser]
+
+    def post(self, request):
+        email = request.data.get("email")
+
+        if not email:
+            return Response(
+                {"error": "Fill in the email field"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {"error": "A user with this email address is already registered"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        token = secrets.token_urlsafe(32)
+
+        valkey_addr = os.environ.get("VALKEY_ADDR", "localhost:6379")
+
+        try:
+            r = valkey.from_url(f"valkey://{valkey_addr}/0", decode_responses=True)
+            cache_key = f"invite_token:{token}"
+            ttl_time = 86400
+
+            r.setex(cache_key, ttl_time, email)
+
+        except valkey.ValkeyError as e:
+            return Response(
+                {"error": "DB error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        frontend_url = os.environ.get("FRONTEND_URL")
+        invite_link = f"{frontend_url}/register?token={token}"
+
+        mail_service_url = os.environ.get("MAIL_SERVICE_URL")
+        endpoint = f"{mail_service_url}/api/send-invite"
+
+        payload = {
+            "email": email,
+            "invite_link": invite_link
+        }
+
+        try:
+            go_response = requests.post(endpoint, json=payload, timeout=5)
+            go_response.raise_for_status()
+
+        except requests.exceptions.RequestException as e:
+            r.delete(cache_key)
+
+            return Response(
+                {"error": "Failed to send invitation letter. Please try again."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response(
+            {"message": f"Invitation successfully sent to {email}"},
+            status=status.HTTP_201_CREATED
+        )
+
+
+class AcceptInviteView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        token = request.data.get("token")
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        if not token or not username or not password:
+            return Response(
+                {"error": "All fields are required "},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        cache_key = f"invite_token:{token}"
+        valkey_addr = os.environ.get("VALKEY_ADDR")
+
+        try:
+            r = valkey.from_url(f"valkey://{valkey_addr}/0", decode_responses=True)
+            email = r.get(cache_key)
+        except valkey.ValkeyError as e:
+            return Response(
+                {"error": "Valkey DB error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        if not email:
+            return Response(
+                {"error": "Invalid or expired registration link"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if User.objects.filter(username=username).exists():
+            return Response(
+                {"error": "A user with this username already exists"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if User.objects.filter(email=email).exists():
+            r.delete(cache_key)
+            return Response(
+                {"error": "A user with this email address is already registered"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            is_active=True
+        )
+
+        try:
+            r.delete(cache_key)
+        except valkey.ValkeyError:
+            pass
+
+        return Response(
+            {"message": f"Registration successful {username}."},
+            status=status.HTTP_201_CREATED
+        )
+
 # First login password change
 class UpdatePasswordView(APIView):
     permission_classes = [IsAuthenticated]
@@ -190,4 +326,3 @@ class UpdatePasswordView(APIView):
         return Response(
             {"message": "Password updated successfully"}, status=status.HTTP_200_OK
         )
-

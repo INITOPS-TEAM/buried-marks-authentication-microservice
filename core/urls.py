@@ -2,8 +2,9 @@ from django.contrib import admin
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from users.views import Step1LoginView, Step2LoginView, UpdatePasswordView, ActiveUserEmailsView, EligibleUsersCountView, \
-    BanUserView, UpdateUserRoleView
+from users.views import Step1LoginView, Step2LoginView, UpdatePasswordView, ActiveUserEmailsView, \
+    EligibleUsersCountView, \
+    BanUserView, UpdateUserRoleView, InviteUserView, AcceptInviteView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -15,4 +16,6 @@ urlpatterns = [
     path('api/users/count/', EligibleUsersCountView.as_view(), name='users-count'),
     path('api/users/<int:user_id>/ban/', BanUserView.as_view(), name='user-ban'),
     path('api/users/<int:user_id>/role/', UpdateUserRoleView.as_view(), name='user-role-update'),
+    path('invite/', InviteUserView.as_view(), name='invite_user'),
+    path('accept-invite/', AcceptInviteView.as_view(), name='accept_invite'),
 ]
