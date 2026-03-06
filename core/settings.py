@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+from logging import DEBUG
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -121,6 +122,8 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 
 USE_TZ = True
+
+DEBUG = False
 
 
 # Static files (CSS, JavaScript, Images)

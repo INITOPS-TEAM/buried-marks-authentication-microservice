@@ -6,3 +6,4 @@ python-dotenv==1.2.1
 django-cors-headers==4.9.0
 cryptography==46.0.5
 valkey
+requests
