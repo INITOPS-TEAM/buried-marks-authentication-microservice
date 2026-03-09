@@ -4,17 +4,17 @@ from django.core import signing
 from django.core.signing import BadSignature, SignatureExpired
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
+from rest_framework.generics import ListAPIView
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 import os
 import valkey
 import requests
 
-
-from core import settings
 from .models import CustomUser
-from .serializers import CustomTokenObtainPairSerializer
+from .serializers import CustomTokenObtainPairSerializer, UserListSerializer
+from .permissions import IsInternalService, IsGoldUserOrArchitect, IsInspectorOrArchitect, IsArchitectOnly
 
 User = get_user_model()
 
@@ -121,11 +121,6 @@ class Step2LoginView(APIView):
             status=status.HTTP_200_OK,
         )
 
-class IsInternalService(BasePermission):
-    def has_permission(self, request, view):
-        secret_key = request.headers.get('X-Internal-Token')
-        return secret_key == settings.SECRET_KEY
-
 class ActiveUserEmailsView(APIView):
     permission_classes = [IsInternalService]
 
@@ -172,14 +167,23 @@ class UpdateUserRoleView(APIView):
 
         return Response({"message": f"User {user_id} role updated to '{new_role}'."}, status=status.HTTP_200_OK)
 
-# Check if user is Gold
-class IsGoldUser(BasePermission):
-    def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and str(request.user.role) == '3')
+class UserListView(ListAPIView):
+    serializer_class = UserListSerializer
+    permission_classes = [IsInspectorOrArchitect]
 
+    def get_queryset(self):
+        queryset = CustomUser.objects.filter(is_active=True)
+
+        roles_param = self.request.query_params.get('roles')
+
+        if roles_param:
+            roles_list = roles_param.split(',')
+            queryset = queryset.filter(role__in=roles_list)
+
+        return queryset
 
 class InviteUserView(APIView):
-    permission_classes = [IsGoldUser]
+    permission_classes = [IsGoldUserOrArchitect]
 
     def post(self, request):
         email = request.data.get("email")
@@ -198,7 +202,7 @@ class InviteUserView(APIView):
 
         token = secrets.token_urlsafe(32)
 
-        valkey_addr = os.environ.get("VALKEY_ADDR", "localhost:6379")
+        valkey_addr = os.environ.get("VALKEY_ADDR")
 
         try:
             r = valkey.from_url(f"valkey://{valkey_addr}/0", decode_responses=True)
@@ -304,25 +308,70 @@ class AcceptInviteView(APIView):
             status=status.HTTP_201_CREATED
         )
 
-# First login password change
-class UpdatePasswordView(APIView):
-    permission_classes = [IsAuthenticated]
+class ArchitectEmailView(APIView):
+    permission_classes = [IsArchitectOnly]
 
     def post(self, request):
-        new_password = request.data.get("new_password")
+        roles = request.data.get("roles", [])
+        subject = request.data.get("subject")
+        custom_text = request.data.get("custom_text")
 
-        if not new_password:
+        if not roles or not isinstance(roles, list):
+            return Response({"error": "Needed list of roles."}, status=status.HTTP_400_BAD_REQUEST)
+        if not subject or not custom_text:
+            return Response({"error": "Fill in the required fields"}, status=status.HTTP_400_BAD_REQUEST)
+
+        valid_roles = {'1', '2', '3'}
+        if not set(roles).issubset(valid_roles):
+            return Response({"error": "Invalid roles specified. Allowed: 1, 2, 3."}, status=status.HTTP_400_BAD_REQUEST)
+
+        target_emails = list(CustomUser.objects.filter(role__in=roles, is_active=True).values_list('email', flat=True))
+
+        if not target_emails:
+            return Response({"error": "No users with these roles were found."}, status=status.HTTP_404_NOT_FOUND)
+
+        mail_service_url = os.environ.get("MAIL_SERVICE_URL")
+        endpoint = f"{mail_service_url}/api/send-architect-email"
+
+        payload = {
+            "emails": target_emails,
+            "subject": subject,
+            "custom_text": custom_text
+        }
+
+        try:
+            go_response = requests.post(endpoint, json=payload, timeout=10)
+            go_response.raise_for_status()
+        except requests.exceptions.RequestException:
             return Response(
-                {"error": "Please provide a new_password"},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"error": "Unable to reach mail service. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        user = request.user
-
-        user.set_password(new_password)
-        user.is_first_login = False
-        user.save()
-
         return Response(
-            {"message": "Password updated successfully"}, status=status.HTTP_200_OK
+            {"message": f"The mailing has been successfully launched for {len(target_emails)} users."},
+            status=status.HTTP_200_OK
         )
+
+# First login password change
+# class UpdatePasswordView(APIView):
+#     permission_classes = [IsAuthenticated]
+#
+#     def post(self, request):
+#         new_password = request.data.get("new_password")
+#
+#         if not new_password:
+#             return Response(
+#                 {"error": "Please provide a new_password"},
+#                 status=status.HTTP_400_BAD_REQUEST,
+#             )
+#
+#         user = request.user
+#
+#         user.set_password(new_password)
+#         user.is_first_login = False
+#         user.save()
+#
+#         return Response(
+#             {"message": "Password updated successfully"}, status=status.HTTP_200_OK
+#         )
