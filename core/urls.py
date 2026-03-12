@@ -4,13 +4,14 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from users.views import Step1LoginView, Step2LoginView, ActiveUserEmailsView, \
     EligibleUsersCountView, \
-    BanUserView, UpdateUserRoleView, InviteUserView, AcceptInviteView, UserListView, ArchitectEmailView
+    BanUserView, UpdateUserRoleView, InviteUserView, AcceptInviteView, UserListView, ArchitectEmailView, \
+    CustomTokenRefreshView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/login/step1/", Step1LoginView.as_view(), name="login_step1"),
     path("api/login/step2/", Step2LoginView.as_view(), name="login_step2"),
-    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/token/refresh/", CustomTokenRefreshView.as_view(), name="refresh_token"),
     path('api/emails/', ActiveUserEmailsView.as_view(), name='internal_emails'),
     path('api/users/count/', EligibleUsersCountView.as_view(), name='users-count'),
     path('api/users/<int:user_id>/ban/', BanUserView.as_view(), name='user-ban'),
