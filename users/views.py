@@ -1,4 +1,7 @@
 import secrets
+from django.utils import timezone
+from os import access
+
 from django.contrib.auth import authenticate, get_user_model
 from django.core import signing
 from django.core.signing import BadSignature, SignatureExpired
@@ -11,9 +14,11 @@ from rest_framework.views import APIView
 import os
 import valkey
 import requests
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from .models import CustomUser
-from .serializers import CustomTokenObtainPairSerializer, UserListSerializer
+from .serializers import UserListSerializer, CustomTokenRefreshSerializer
 from .permissions import IsInternalService, IsGoldUserOrArchitect, IsInspectorOrArchitect, IsArchitectOnly
 
 User = get_user_model()
@@ -111,15 +116,24 @@ class Step2LoginView(APIView):
             )
 
         # Generate JWT token
-        refresh = CustomTokenObtainPairSerializer.get_token(user)
+        refresh = RefreshToken.for_user(user)
+
+        access_token = refresh.access_token
+        access_token["username"] = user.username
+        access_token["role"] = user.role
+        access_token["inspector"] = user.is_inspector
+        access_token["authorized_for_date"] = timezone.now().date().isoformat()
 
         return Response(
             {
-                "access": str(refresh.access_token),
+                "access": str(access_token),
                 "refresh": str(refresh),
             },
             status=status.HTTP_200_OK,
         )
+
+class CustomTokenRefreshView(TokenRefreshView):
+    serializer_class = CustomTokenRefreshSerializer
 
 class ActiveUserEmailsView(APIView):
     permission_classes = [IsInternalService]
