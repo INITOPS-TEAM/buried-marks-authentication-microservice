@@ -1,6 +1,5 @@
 .env
-private.pem
-public.pem
+*.pem
 .venv/
 .idea/
 __pycache__/

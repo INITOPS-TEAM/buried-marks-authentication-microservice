@@ -2,3 +2,9 @@ __pycache__/
 *.pyc
 .git/
 test_api.http
+
+*.pem
+.env*
+.github
+
+.dockerignore
