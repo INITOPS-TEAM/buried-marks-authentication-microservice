@@ -1,7 +1,6 @@
 import secrets
+from venv import logger
 from django.utils import timezone
-from os import access
-
 from django.contrib.auth import authenticate, get_user_model
 from django.core import signing
 from django.core.signing import BadSignature, SignatureExpired
@@ -316,6 +315,16 @@ class AcceptInviteView(APIView):
             r.delete(cache_key)
         except valkey.ValkeyError:
             pass
+
+        invite_daily_code_url = os.environ.get("INVITE_DAILY_CODE_URL")
+        try:
+            requests.post(
+                invite_daily_code_url,
+                json={"email": email,},
+                timeout=3
+            )
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to send new user daily code email for {email}: {e}")
 
         return Response(
             {"message": f"Registration successful {username}."},
