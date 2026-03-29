@@ -38,8 +38,8 @@ DATABASES = {
 
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
-ALLOWED_HOSTS = ["auth-service", "localhost", "127.0.0.1"]
-
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,auth-service").split(",")
+CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost").split(",")
 
 
 # Application definition
@@ -88,9 +88,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "core.wsgi.application"
 
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost",
-]
+CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost").split(",")
 
 
 # Password validation
@@ -123,7 +121,7 @@ USE_I18N = True
 
 USE_TZ = True
 
-DEBUG = False
+DEBUG = os.environ.get("DEBUG", "False") == "True"
 
 
 # Static files (CSS, JavaScript, Images)
