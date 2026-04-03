@@ -22,10 +22,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v6
 
+    
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v6
       with:
-        role-to-assume: arn:aws:iam::531331080468:role/github-service
+        role-to-assume: arn:aws:iam::995303881249:role/github-service
         aws-region: eu-north-1
 
     - name: Login to ECR
@@ -34,11 +35,51 @@ jobs:
 
     - name: Build and push
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: ${{ github.event.repository.name }}
         IMAGE_TAG: ${{ github.event_name == 'release' && github.ref_name || github.sha }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        docker build -t 995303881249/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker tag 995303881249/$ECR_REPOSITORY:$IMAGE_TAG 995303881249/$ECR_REPOSITORY:latest
+        docker push 995303881249/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push 995303881249/$ECR_REPOSITORY:latest
+    
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: arn:aws:iam::492052863680:role/github-service
+        aws-region: eu-north-1
+
+    - name: Login to ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2.1.0
+
+    - name: Build and push
+      env:
+        ECR_REPOSITORY: ${{ github.event.repository.name }}
+        IMAGE_TAG: ${{ github.event_name == 'release' && github.ref_name || github.sha }}
+      run: |
+        docker build -t 492052863680/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker tag 492052863680/$ECR_REPOSITORY:$IMAGE_TAG 492052863680/$ECR_REPOSITORY:latest
+        docker push 492052863680/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push 492052863680/$ECR_REPOSITORY:latest
+    
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: arn:aws:iam::833822972731:role/github-service
+        aws-region: eu-north-1
+
+    - name: Login to ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2.1.0
+
+    - name: Build and push
+      env:
+        ECR_REPOSITORY: ${{ github.event.repository.name }}
+        IMAGE_TAG: ${{ github.event_name == 'release' && github.ref_name || github.sha }}
+      run: |
+        docker build -t 833822972731/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker tag 833822972731/$ECR_REPOSITORY:$IMAGE_TAG 833822972731/$ECR_REPOSITORY:latest
+        docker push 833822972731/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push 833822972731/$ECR_REPOSITORY:latest
+    
