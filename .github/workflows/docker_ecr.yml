@@ -26,7 +26,7 @@ jobs:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v6
       with:
-        role-to-assume: arn:aws:iam::995303881249:role/github-service
+        role-to-assume: arn:aws:iam::492052863680:role/github-service
         aws-region: eu-north-1
 
     - name: Login to ECR
@@ -34,7 +34,7 @@ jobs:
 
     - name: Build and push
       env:
-        ECR_REGISTRY: "995303881249.dkr.ecr.eu-north-1.amazonaws.com"
+        ECR_REGISTRY: "492052863680.dkr.ecr.eu-north-1.amazonaws.com"
         ECR_REPOSITORY: ${{ github.event.repository.name }}
         IMAGE_TAG: ${{ github.event_name == 'release' && github.ref_name || github.sha }}
       run: |
@@ -46,7 +46,7 @@ jobs:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v6
       with:
-        role-to-assume: arn:aws:iam::492052863680:role/github-service
+        role-to-assume: arn:aws:iam::995303881249:role/github-service
         aws-region: eu-north-1
 
     - name: Login to ECR
@@ -54,7 +54,7 @@ jobs:
 
     - name: Build and push
       env:
-        ECR_REGISTRY: "492052863680.dkr.ecr.eu-north-1.amazonaws.com"
+        ECR_REGISTRY: "995303881249.dkr.ecr.eu-north-1.amazonaws.com"
         ECR_REPOSITORY: ${{ github.event.repository.name }}
         IMAGE_TAG: ${{ github.event_name == 'release' && github.ref_name || github.sha }}
       run: |
