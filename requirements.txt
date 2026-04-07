@@ -7,3 +7,4 @@ django-cors-headers==4.9.0
 cryptography==46.0.5
 valkey
 requests
+boto3==1.42.84
