@@ -25,25 +25,26 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
 
-def get_rds_token():
-    client = boto3.client('rds', region_name=os.environ.get("AWS_REGION"))
-    return client.generate_db_auth_token(
-        DBHostname=os.environ.get("DB_HOST"),
-        Port=os.environ.get("DB_PORT"),
-        DBUsername=os.environ.get("DB_USER"),
-        Region=os.environ.get("AWS_REGION")
-    )
+# def get_rds_token():
+#     client = boto3.client('rds', region_name=os.environ.get("AWS_REGION"))
+#     return client.generate_db_auth_token(
+#         DBHostname=os.environ.get("DB_HOST"),
+#         Port=os.environ.get("DB_PORT"),
+#         DBUsername=os.environ.get("DB_USER"),
+#         Region=os.environ.get("AWS_REGION")
+#     )
 
-DB_PASSWORD = os.environ.get("DB_PASSWORD")
-if "amazonaws.com" in os.environ.get("DB_HOST"):
-    DB_PASSWORD = get_rds_token()
+# DB_PASSWORD = os.environ.get("DB_PASSWORD")
+# if "amazonaws.com" in os.environ.get("DB_HOST"):
+#     DB_PASSWORD = get_rds_token()
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        # "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "awsengine",
         "NAME": os.environ.get("DB_NAME"),
         "USER": os.environ.get("DB_USER"),
-        "PASSWORD": DB_PASSWORD,
+        "PASSWORD": os.environ.get("DB_PASSWORD"),
         "HOST": os.environ.get("DB_HOST"),
         "PORT": os.environ.get("DB_PORT"),
         'OPTIONS': {'sslmode': 'require'}
