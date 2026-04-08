@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 from logging import DEBUG
 from pathlib import Path
+import boto3
 
 from dotenv import load_dotenv
 
@@ -24,15 +25,15 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
 
-
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "awsengine",
         "NAME": os.environ.get("DB_NAME"),
         "USER": os.environ.get("DB_USER"),
         "PASSWORD": os.environ.get("DB_PASSWORD"),
         "HOST": os.environ.get("DB_HOST"),
         "PORT": os.environ.get("DB_PORT"),
+        'OPTIONS': {'sslmode': 'require'}
     }
 }
 
