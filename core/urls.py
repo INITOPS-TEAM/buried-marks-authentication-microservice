@@ -5,7 +5,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from users.views import Step1LoginView, Step2LoginView, ActiveUserEmailsView, \
     EligibleUsersCountView, \
     BanUserView, UpdateUserRoleView, InviteUserView, AcceptInviteView, UserListView, ArchitectEmailView, \
-    CustomTokenRefreshView
+    CustomTokenRefreshView, MCPModerationView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -20,4 +20,5 @@ urlpatterns = [
     path('invite/', InviteUserView.as_view(), name='invite_user'),
     path('accept-invite/', AcceptInviteView.as_view(), name='accept_invite'),
     path('architect/send-email/', ArchitectEmailView.as_view(), name='architect_send_email'),
+    path('architect/mcp-moderation/', MCPModerationView.as_view(), name='ai-moderation'),
 ]

@@ -15,7 +15,6 @@ import valkey
 import requests
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
-
 from .models import CustomUser
 from .serializers import UserListSerializer, CustomTokenRefreshSerializer
 from .permissions import IsInternalService, IsGoldUserOrArchitect, IsInspectorOrArchitect, IsArchitectOnly
@@ -134,6 +133,7 @@ class Step2LoginView(APIView):
 class CustomTokenRefreshView(TokenRefreshView):
     serializer_class = CustomTokenRefreshSerializer
 
+# Active user emails for mailing
 class ActiveUserEmailsView(APIView):
     permission_classes = [IsInternalService]
 
@@ -375,6 +375,58 @@ class ArchitectEmailView(APIView):
             {"message": f"The mailing has been successfully launched for {len(target_emails)} users."},
             status=status.HTTP_200_OK
         )
+
+mcp_server_url = os.environ.get("MCP_SERVER_URL")
+mcp_timeout = 50
+
+class MCPModerationView(APIView):
+    permission_classes = [IsArchitectOnly]
+
+    def post(self, request):
+        prompt = request.data.get("prompt")
+
+        if not prompt:
+            return Response(
+                {"error": "The prompt field is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not mcp_server_url:
+            logger.error("CRITICAL: MCP_SERVER_URL is not configured in environment variables.")
+            return Response(
+                {"error": "Internal server configuration error."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        endpoint = f"{mcp_server_url}/api/moderate"
+
+        payload = {
+            "prompt": prompt,
+        }
+
+        try:
+            mcp_response = requests.post(endpoint, json=payload, timeout=mcp_timeout)
+            mcp_response.raise_for_status()
+            mcp_data = mcp_response.json()
+            report = mcp_data.get("report") or mcp_data.get("result")
+
+            return Response(
+                {"report": report},
+                status=status.HTTP_200_OK
+            )
+
+        except requests.exceptions.Timeout:
+            logger.warning(f"MCP server timeout for prompt: {prompt}")
+            return Response(
+                {"error": "AI Agent is taking too long to respond. Please try a smaller request."},
+                status=status.HTTP_504_GATEWAY_TIMEOUT
+            )
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Communication error with MCP server: {e}")
+            return Response(
+                {"error": "Failed to establish a secure connection with the AI Agent."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 # First login password change
 # class UpdatePasswordView(APIView):
